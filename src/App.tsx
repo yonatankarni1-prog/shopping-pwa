@@ -38,27 +38,32 @@ function JoinScreen({ onJoined }: { onJoined: (hid: string) => void }) {
 
 function ListScreen({ householdId }: { householdId: string }) {
   const { items, refetch, connected, applyLocal } = useItems(householdId)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ text: string; nonce: number } | null>(null)
+
+  function showToast(text: string) {
+    setToast((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
 
   async function handleAdd(name: string) {
     try {
       const result = await addItem(householdId, name)
-      if (result.status === 'existing') setToast(`"${result.name}" כבר ברשימה ✓ (×${result.qty})`)
+      if (result.status === 'existing') showToast(`"${result.name}" כבר ברשימה ✓ (×${result.qty})`)
       await refetch()
-    } catch {
-      setToast('ההוספה נכשלה — נסו שוב')
+    } catch (e) {
+      showToast('ההוספה נכשלה — נסו שוב')
+      throw e
     }
   }
 
   async function handleToggle(item: Item) {
     applyLocal((prev) => prev.map((i) => (i.id === item.id ? { ...i, bought: !item.bought } : i)))
-    try { await toggleBought(item) } catch { setToast('העדכון נכשל — נסו שוב') }
+    try { await toggleBought(item) } catch { showToast('העדכון נכשל — נסו שוב') }
     await refetch() // server truth — rolls the optimistic patch back on failure
   }
 
   async function handleDelete(item: Item) {
     applyLocal((prev) => prev.filter((i) => i.id !== item.id))
-    try { await deleteItem(item.id) } catch { setToast('המחיקה נכשלה — נסו שוב') }
+    try { await deleteItem(item.id) } catch { showToast('המחיקה נכשלה — נסו שוב') }
     await refetch()
   }
 
@@ -68,7 +73,7 @@ function ListScreen({ householdId }: { householdId: string }) {
       {!connected && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
       <AddItemForm onAdd={handleAdd} disabled={false} />
       <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} disabled={false} />
-      <Toast message={toast} />
+      <Toast toast={toast} />
     </main>
   )
 }

@@ -14,6 +14,8 @@ export function AddItemForm({ onAdd, disabled }: Props) {
     try {
       await onAdd(name)
       setValue('')
+    } catch {
+      // keep the typed value; parent already surfaced the error toast
     } finally {
       setBusy(false)
     }

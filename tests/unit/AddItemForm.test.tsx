@@ -26,4 +26,13 @@ describe('AddItemForm', () => {
     expect((screen.getByPlaceholderText('מה להוסיף?') as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByRole('button', { name: 'הוסף' }) as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it('keeps the typed value when onAdd rejects', async () => {
+    const onAdd = vi.fn().mockRejectedValue(new Error('boom'))
+    render(<AddItemForm onAdd={onAdd} disabled={false} />)
+    const input = screen.getByPlaceholderText('מה להוסיף?')
+    await userEvent.type(input, 'חלב{enter}')
+    expect(onAdd).toHaveBeenCalledWith('חלב')
+    expect((input as HTMLInputElement).value).toBe('חלב')
+  })
 })
