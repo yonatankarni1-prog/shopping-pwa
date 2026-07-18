@@ -1,0 +1,3 @@
+# Keep Import Seed Script
+
+To seed the production shopping list with common items from Google Keep, open the Keep list titled "סופר חדש", copy the ~50 items the family regularly buys (one per line), paste them into a new file `keep_export.txt` in this directory, then run `npx tsx --env-file=.env.test seed/seed.ts seed/keep_export.txt`. The script will create new items with `source='manual'` or increment the quantity of items that already exist, and print a summary of created/existing/failed counts. Note: `keep_export.txt` is gitignored and should not be committed; once seeding is complete, delete the file.
