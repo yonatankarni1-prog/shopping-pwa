@@ -1,7 +1,10 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { ensureSession, ensureHousehold, joinWithCode } from './lib/session'
-import { useItems } from './lib/useItems'
+import { useItems, type Item } from './lib/useItems'
+import { addItem, toggleBought, deleteItem } from './lib/mutations'
 import { ItemList } from './components/ItemList'
+import { AddItemForm } from './components/AddItemForm'
+import { Toast } from './components/Toast'
 
 // Manual join fallback — survives iOS Safari↔standalone storage isolation
 // even if the launch URL lost the ?invite= param.
@@ -11,6 +14,7 @@ function JoinScreen({ onJoined }: { onJoined: (hid: string) => void }) {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    setFailed(false)
     try {
       onJoined(await joinWithCode(code))
     } catch {
@@ -33,12 +37,38 @@ function JoinScreen({ onJoined }: { onJoined: (hid: string) => void }) {
 }
 
 function ListScreen({ householdId }: { householdId: string }) {
-  const { items, connected } = useItems(householdId)
+  const { items, refetch, connected, applyLocal } = useItems(householdId)
+  const [toast, setToast] = useState<string | null>(null)
+
+  async function handleAdd(name: string) {
+    try {
+      const result = await addItem(householdId, name)
+      if (result.status === 'existing') setToast(`"${result.name}" כבר ברשימה ✓ (×${result.qty})`)
+      await refetch()
+    } catch {
+      setToast('ההוספה נכשלה — נסו שוב')
+    }
+  }
+
+  async function handleToggle(item: Item) {
+    applyLocal((prev) => prev.map((i) => (i.id === item.id ? { ...i, bought: !item.bought } : i)))
+    try { await toggleBought(item) } catch { setToast('העדכון נכשל — נסו שוב') }
+    await refetch() // server truth — rolls the optimistic patch back on failure
+  }
+
+  async function handleDelete(item: Item) {
+    applyLocal((prev) => prev.filter((i) => i.id !== item.id))
+    try { await deleteItem(item.id) } catch { setToast('המחיקה נכשלה — נסו שוב') }
+    await refetch()
+  }
+
   return (
     <main className="app">
       <h1>רשימת קניות 🛒</h1>
       {!connected && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
-      <ItemList items={items} onToggle={() => {}} onDelete={() => {}} disabled={false} />
+      <AddItemForm onAdd={handleAdd} disabled={false} />
+      <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} disabled={false} />
+      <Toast message={toast} />
     </main>
   )
 }
