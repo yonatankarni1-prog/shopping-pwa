@@ -1,77 +1,59 @@
-import { useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { ensureSession, ensureHousehold, joinWithCode } from './lib/session'
+import { useItems } from './lib/useItems'
+import { ItemList } from './components/ItemList'
 
-// Throwaway proof screen for the walking-skeleton gate (Task 6.5) — replaced
-// by the real ListScreen in Task 7.
-function SkeletonScreen({ householdId }: { householdId: string }) {
-  return (
-    <main className="app" style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>רשימת קניות 🛒</h1>
-      <p>מחובר ✓ (משק-בית …{householdId.slice(-6)})</p>
-    </main>
-  )
-}
-
-// Minimal inline join fallback — Task 7 brings the real JoinScreen + stylesheet.
-function JoinScreen({ onJoined }: { onJoined: (householdId: string) => void }) {
+// Manual join fallback — survives iOS Safari↔standalone storage isolation
+// even if the launch URL lost the ?invite= param.
+function JoinScreen({ onJoined }: { onJoined: (hid: string) => void }) {
   const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
-  async function handleJoin() {
-    setError(null)
-    setBusy(true)
+  async function submit(e: FormEvent) {
+    e.preventDefault()
     try {
-      const hid = await joinWithCode(code)
-      onJoined(hid)
+      onJoined(await joinWithCode(code))
     } catch {
-      setError('קוד הזמנה שגוי, נסו שוב')
-    } finally {
-      setBusy(false)
+      setFailed(true)
     }
   }
 
   return (
-    <main className="app" style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>הצטרפות למשק בית</h1>
-      <input
-        type="text"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="קוד הזמנה"
-        style={{ fontSize: '1rem', padding: '0.5rem', marginInlineEnd: '0.5rem' }}
-      />
-      <button type="button" onClick={handleJoin} disabled={busy || !code.trim()}>
-        הצטרף
-      </button>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+    <main className="app">
+      <h1>רשימת קניות 🛒</h1>
+      <p>פתחו את לינק ההזמנה שקיבלתם, או הקלידו כאן את קוד ההזמנה:</p>
+      <form className="add-form" onSubmit={submit}>
+        <input type="text" value={code} placeholder="קוד הזמנה" dir="ltr"
+          onChange={(e) => setCode(e.target.value)} />
+        <button type="submit" disabled={!code.trim()}>הצטרפות</button>
+      </form>
+      {failed && <p className="error">הקוד לא נכון — בדקו ונסו שוב</p>}
     </main>
   )
 }
 
-function App() {
-  const [householdId, setHouseholdId] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      await ensureSession()
-      const hid = await ensureHousehold()
-      if (cancelled) return
-      setHouseholdId(hid)
-      setReady(true)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (!ready) return null
-
-  if (householdId) return <SkeletonScreen householdId={householdId} />
-
-  return <JoinScreen onJoined={setHouseholdId} />
+function ListScreen({ householdId }: { householdId: string }) {
+  const { items, connected } = useItems(householdId)
+  return (
+    <main className="app">
+      <h1>רשימת קניות 🛒</h1>
+      {!connected && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
+      <ItemList items={items} onToggle={() => {}} onDelete={() => {}} disabled={false} />
+    </main>
+  )
 }
 
-export default App
+export default function App() {
+  const [householdId, setHouseholdId] = useState<string | null | 'loading'>('loading')
+
+  useEffect(() => {
+    (async () => {
+      await ensureSession()
+      setHouseholdId(await ensureHousehold())
+    })().catch(() => setHouseholdId(null))
+  }, [])
+
+  if (householdId === 'loading') return <main className="app"><p>טוען…</p></main>
+  if (householdId === null) return <JoinScreen onJoined={setHouseholdId} />
+  return <ListScreen householdId={householdId} />
+}
