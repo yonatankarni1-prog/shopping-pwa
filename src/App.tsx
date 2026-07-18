@@ -1,9 +1,11 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { ensureSession, ensureHousehold, joinWithCode } from './lib/session'
 import { useItems, type Item } from './lib/useItems'
+import { useOnline } from './lib/useOnline'
 import { addItem, toggleBought, deleteItem } from './lib/mutations'
 import { ItemList } from './components/ItemList'
 import { AddItemForm } from './components/AddItemForm'
+import { OfflineBanner } from './components/OfflineBanner'
 import { Toast } from './components/Toast'
 
 // Manual join fallback — survives iOS Safari↔standalone storage isolation
@@ -38,6 +40,7 @@ function JoinScreen({ onJoined }: { onJoined: (hid: string) => void }) {
 
 function ListScreen({ householdId }: { householdId: string }) {
   const { items, refetch, connected, applyLocal } = useItems(householdId)
+  const online = useOnline()
   const [toast, setToast] = useState<{ text: string; nonce: number } | null>(null)
 
   function showToast(text: string) {
@@ -70,9 +73,10 @@ function ListScreen({ householdId }: { householdId: string }) {
   return (
     <main className="app">
       <h1>רשימת קניות 🛒</h1>
-      {!connected && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
-      <AddItemForm onAdd={handleAdd} disabled={false} />
-      <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} disabled={false} />
+      {!online && <OfflineBanner />}
+      {online && !connected && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
+      <AddItemForm onAdd={handleAdd} disabled={!online} />
+      <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} disabled={!online} />
       <Toast toast={toast} />
     </main>
   )
