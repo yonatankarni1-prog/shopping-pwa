@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       continue
     }
     console.log(`ingest: accepted "${item.name}" -> ${data.status} (qty=${data.qty})`)
-    results.push({ name: item.name, ...data })
+    results.push({ ...data, name: item.name })
   }
   const allOk = results.every((r) => r.status !== 'error')
   return json(allOk ? 200 : 207, { results })

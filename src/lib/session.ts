@@ -3,10 +3,10 @@ import { supabase } from './supabase'
 const HOUSEHOLD_KEY = 'household_id'
 
 export async function ensureSession(): Promise<void> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (session) return
-  const { error } = await supabase.auth.signInAnonymously()
-  if (error) throw error
+  const { data, error } = await supabase.auth.getSession()
+  if (!error && data.session) return
+  const { error: signInError } = await supabase.auth.signInAnonymously()
+  if (signInError) throw signInError
 }
 
 export async function resolveHousehold(
@@ -16,13 +16,15 @@ export async function resolveHousehold(
 ): Promise<string | null> {
   const invite = new URLSearchParams(search).get('invite')
   if (invite) {
+    let hid: string
     try {
-      const hid = await rpc(invite)
-      storage.setItem(HOUSEHOLD_KEY, hid)
-      return hid
+      hid = await rpc(invite)
     } catch {
       // invalid/expired invite — fall back to whatever we already have
+      return storage.getItem(HOUSEHOLD_KEY)
     }
+    storage.setItem(HOUSEHOLD_KEY, hid)
+    return hid
   }
   return storage.getItem(HOUSEHOLD_KEY)
 }

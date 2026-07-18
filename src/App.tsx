@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { ensureSession, ensureHousehold, joinWithCode } from './lib/session'
 import { useItems, type Item } from './lib/useItems'
 import { useOnline } from './lib/useOnline'
@@ -18,6 +18,7 @@ function JoinScreen({ onJoined }: { onJoined: (hid: string) => void }) {
     e.preventDefault()
     setFailed(false)
     try {
+      await ensureSession() // idempotent — reuses an existing session; recovers from a failed startup session
       onJoined(await joinWithCode(code))
     } catch {
       setFailed(true)
@@ -42,6 +43,11 @@ function ListScreen({ householdId }: { householdId: string }) {
   const { items, refetch, connected, applyLocal } = useItems(householdId)
   const online = useOnline()
   const [toast, setToast] = useState<{ text: string; nonce: number } | null>(null)
+  const wasConnected = useRef(false)
+
+  useEffect(() => {
+    if (connected) wasConnected.current = true
+  }, [connected])
 
   function showToast(text: string) {
     setToast((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
@@ -59,14 +65,32 @@ function ListScreen({ householdId }: { householdId: string }) {
   }
 
   async function handleToggle(item: Item) {
-    applyLocal((prev) => prev.map((i) => (i.id === item.id ? { ...i, bought: !item.bought } : i)))
-    try { await toggleBought(item) } catch { showToast('העדכון נכשל — נסו שוב') }
+    let snapshot: Item[] = []
+    applyLocal((prev) => {
+      snapshot = prev
+      return prev.map((i) => (i.id === item.id ? { ...i, bought: !item.bought } : i))
+    })
+    try {
+      await toggleBought(item)
+    } catch {
+      applyLocal(() => snapshot)
+      showToast('העדכון נכשל — נסו שוב')
+    }
     await refetch() // server truth — rolls the optimistic patch back on failure
   }
 
   async function handleDelete(item: Item) {
-    applyLocal((prev) => prev.filter((i) => i.id !== item.id))
-    try { await deleteItem(item.id) } catch { showToast('המחיקה נכשלה — נסו שוב') }
+    let snapshot: Item[] = []
+    applyLocal((prev) => {
+      snapshot = prev
+      return prev.filter((i) => i.id !== item.id)
+    })
+    try {
+      await deleteItem(item.id)
+    } catch {
+      applyLocal(() => snapshot)
+      showToast('המחיקה נכשלה — נסו שוב')
+    }
     await refetch()
   }
 
@@ -74,7 +98,7 @@ function ListScreen({ householdId }: { householdId: string }) {
     <main className="app">
       <h1>רשימת קניות 🛒</h1>
       {!online && <OfflineBanner />}
-      {online && !connected && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
+      {online && !connected && wasConnected.current && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
       <AddItemForm onAdd={handleAdd} disabled={!online} />
       <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} disabled={!online} />
       <Toast toast={toast} />
