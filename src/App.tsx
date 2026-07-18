@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { ensureSession, ensureHousehold, joinWithCode } from './lib/session'
 import { useItems, type Item } from './lib/useItems'
 import { useOnline } from './lib/useOnline'
-import { addItem, toggleBought, deleteItem } from './lib/mutations'
+import { addItem, toggleBought, deleteItem, updatePosition } from './lib/mutations'
 import { ItemList } from './components/ItemList'
 import { AddItemForm } from './components/AddItemForm'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -94,13 +94,27 @@ function ListScreen({ householdId }: { householdId: string }) {
     await refetch()
   }
 
+  // Optimistic patch is a pure position update — ItemList sorts actives by
+  // position on render, so this alone reflects the new order immediately.
+  // On failure, the refetch that always follows restores server truth
+  // (same pattern as useItems' applyLocal contract).
+  async function handleReorder(itemId: string, newPosition: number) {
+    applyLocal((prev) => prev.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)))
+    try {
+      await updatePosition(itemId, newPosition)
+    } catch {
+      showToast('הסידור לא נשמר — נסו שוב')
+    }
+    await refetch()
+  }
+
   return (
     <main className="app">
       <h1>רשימת קניות 🛒</h1>
       {!online && <OfflineBanner />}
       {online && !connected && wasConnected.current && <div className="banner warn">עדכון חי מנותק — הרשימה מתרעננת בפתיחה</div>}
       <AddItemForm onAdd={handleAdd} disabled={!online} />
-      <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} disabled={!online} />
+      <ItemList items={items} onToggle={handleToggle} onDelete={handleDelete} onReorder={handleReorder} disabled={!online} />
       <Toast toast={toast} />
     </main>
   )

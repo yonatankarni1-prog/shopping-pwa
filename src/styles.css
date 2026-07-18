@@ -23,6 +23,7 @@ ul { list-style: none; padding: 0; margin: 0; }
 .qty-badge { background: #e8f0fe; color: #1a56db; border-radius: 999px; padding: 1px 8px; font-size: 0.85rem; }
 .source-badge { font-size: 0.85rem; }
 .delete-btn { background: none; border: none; font-size: 1.1rem; padding: 6px; cursor: pointer; }
+.drag-handle { font-size: 1.2rem; padding: 6px; color: #bbb; cursor: grab; touch-action: none; user-select: none; }
 .bought-header { font-size: 1rem; color: #777; margin: 16px 0 8px; }
 .empty { text-align: center; color: #888; margin-top: 32px; }
 .error { color: #b91c1c; font-size: 0.9rem; }

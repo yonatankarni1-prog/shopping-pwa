@@ -70,4 +70,14 @@ describe('add_item RPC', () => {
     const { data: unbought } = await admin.from('items').select('bought_at').eq('id', r.data.id).single()
     expect(unbought!.bought_at).toBeNull()
   })
+
+  it('new items get a position above all active items (top of list)', async () => {
+    const a = await admin.rpc('add_item', { p_household_id: hid, p_name: 'פריט-מיקום-א' })
+    const b = await admin.rpc('add_item', { p_household_id: hid, p_name: 'פריט-מיקום-ב' })
+    const { data: rows } = await admin.from('items')
+      .select('name, position').in('id', [a.data.id, b.data.id])
+    const posA = rows!.find((r) => r.name === 'פריט-מיקום-א')!.position
+    const posB = rows!.find((r) => r.name === 'פריט-מיקום-ב')!.position
+    expect(posB).toBeLessThan(posA) // later add = smaller position = higher in ASC order
+  })
 })

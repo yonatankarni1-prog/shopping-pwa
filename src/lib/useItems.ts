@@ -12,6 +12,7 @@ export type Item = {
   added_by: string | null
   created_at: string
   bought_at: string | null
+  position: number
 }
 
 function readCache(key: string): Item[] {
@@ -29,7 +30,7 @@ export function useItems(householdId: string) {
       .from('items')
       .select('*')
       .eq('household_id', householdId)
-      .order('created_at', { ascending: false })
+      .order('position', { ascending: true })
     if (!error && data && alive.current) {
       setItems(data as Item[])
       localStorage.setItem(cacheKey, JSON.stringify(data))
