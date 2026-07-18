@@ -1,3 +1,7 @@
+# shopping-pwa
+
+Live: https://yonatankarni1-prog.github.io/shopping-pwa/ — deployed on every push to `main` via `.github/workflows/deploy.yml` (GitHub Pages, `actions/deploy-pages`). Repo variables `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` supply the build-time config.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
