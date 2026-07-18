@@ -84,8 +84,9 @@ function SortableItemRow({ item, disabled, onToggle, onDelete }: RowProps) {
 }
 
 export function ItemList({ items, onToggle, onDelete, onReorder, disabled }: Props) {
-  const active = items.filter((i) => !i.bought).sort((a, b) => a.position - b.position)
+  const active = items.filter((i) => !i.bought).sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
   const bought = items.filter((i) => i.bought)
+    .sort((a, b) => (b.bought_at ?? '').localeCompare(a.bought_at ?? ''))
 
   // 250ms hold + 5px tolerance: lets normal scrolling/taps through, only a
   // deliberate hold starts a drag. TouchSensor mirrors it in case a device
@@ -111,6 +112,8 @@ export function ItemList({ items, onToggle, onDelete, onReorder, disabled }: Pro
     if (!above) newPosition = below.position - 1
     else if (!below) newPosition = above.position + 1
     else newPosition = (above.position + below.position) / 2
+
+    if (!Number.isFinite(newPosition)) return
 
     onReorder(String(dragged.id), newPosition)
   }

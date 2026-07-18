@@ -94,15 +94,16 @@ function ListScreen({ householdId }: { householdId: string }) {
     await refetch()
   }
 
-  // Optimistic patch is a pure position update — ItemList sorts actives by
-  // position on render, so this alone reflects the new order immediately.
-  // On failure, the refetch that always follows restores server truth
-  // (same pattern as useItems' applyLocal contract).
   async function handleReorder(itemId: string, newPosition: number) {
-    applyLocal((prev) => prev.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)))
+    let snapshot: Item[] = []
+    applyLocal((prev) => {
+      snapshot = prev
+      return prev.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i))
+    })
     try {
       await updatePosition(itemId, newPosition)
     } catch {
+      applyLocal(() => snapshot)
       showToast('הסידור לא נשמר — נסו שוב')
     }
     await refetch()
