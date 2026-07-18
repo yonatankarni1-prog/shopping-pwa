@@ -22,7 +22,6 @@ export function ItemList({ items, onToggle, onDelete, disabled }: Props) {
         />
         <span className="item-name">{item.name}</span>
         {item.qty > 1 && <span className="qty-badge">×{item.qty}</span>}
-        {item.source === 'whatsapp' && <span className="source-badge" title="נוסף מוואטסאפ">💬</span>}
       </label>
       <button className="delete-btn" disabled={disabled} onClick={() => onDelete(item)} aria-label={`מחק ${item.name}`}>
         🗑
