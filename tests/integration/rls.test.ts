@@ -93,4 +93,21 @@ describe('RLS isolation (spec §5, §9)', () => {
     const mine = rows!.filter((r) => r.user_id === anonUserIds[0])
     expect(mine).toHaveLength(1)
   })
+
+  it('member cannot self-grant membership via direct insert into household_members', async () => {
+    const ins = await userA.from('household_members').insert({ household_id: hB.id, user_id: anonUserIds[0] })
+    expect(ins.error).not.toBeNull() // no write policies on household_members -> RLS default-deny
+    const check = await admin.from('household_members')
+      .select('user_id').eq('household_id', hB.id).eq('user_id', anonUserIds[0])
+    expect(check.data).toHaveLength(0)
+  })
+
+  it('member cannot move an item to another household via UPDATE', async () => {
+    const r = await userA.rpc('add_item', { p_household_id: hA.id, p_name: 'העברה' })
+    expect(r.error).toBeNull()
+    await userA.from('items').update({ household_id: hB.id }).eq('id', r.data.id)
+    const after = await admin.from('items').select('household_id').eq('id', r.data.id).single()
+    expect(after.data!.household_id).toBe(hA.id) // WITH CHECK blocks reassignment regardless of error semantics
+    await userA.from('items').delete().eq('id', r.data.id)
+  })
 })
